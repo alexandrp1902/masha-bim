@@ -47,7 +47,7 @@ const RETRY_DELAY_MS = 500
 const DARK_BG = '#1f2433'
 const LIGHT_BG = '#ffffff'
 
-const PostProcessingPasses = () => {
+const PostProcessingPasses = ({ enabled = true }: { enabled?: boolean }) => {
   const { gl: renderer, scene, camera } = useThree()
   const renderPipelineRef = useRef<RenderPipeline | null>(null)
   const hasPipelineErrorRef = useRef(false)
@@ -112,6 +112,15 @@ const PostProcessingPasses = () => {
     void pipelineVersion
 
     if (!(renderer && scene && camera)) {
+      return
+    }
+
+    if (!enabled) {
+      hasPipelineErrorRef.current = true
+      if (renderPipelineRef.current) {
+        renderPipelineRef.current.dispose()
+      }
+      renderPipelineRef.current = null
       return
     }
 
@@ -281,7 +290,7 @@ const PostProcessingPasses = () => {
       }
       renderPipelineRef.current = null
     }
-  }, [renderer, scene, camera, hoverHighlightMode, zoneLayers, projectId, pipelineVersion])
+  }, [enabled, renderer, scene, camera, hoverHighlightMode, zoneLayers, projectId, pipelineVersion])
 
   useFrame((_, delta) => {
     // Animate background colour toward the current theme target (same lerp as AnimatedBackground)

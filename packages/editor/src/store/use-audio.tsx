@@ -26,8 +26,8 @@ const useAudio = create<AudioState>()(
       sfxVolume: 50,
       radioVolume: 25,
       isRadioPlaying: false,
-      muted: false,
-      autoplay: true,
+      muted: true,
+      autoplay: false,
       setMasterVolume: (v) => set({ masterVolume: v }),
       setSfxVolume: (v) => set({ sfxVolume: v }),
       setRadioVolume: (v) => set({ radioVolume: v }),
@@ -38,6 +38,17 @@ const useAudio = create<AudioState>()(
     }),
     {
       name: 'pascal-audio-settings',
+      version: 2,
+      migrate: (persistedState) => {
+        const state = (persistedState ?? {}) as Partial<AudioState>
+
+        return {
+          ...state,
+          isRadioPlaying: false,
+          muted: true,
+          autoplay: false,
+        }
+      },
     },
   ),
 )

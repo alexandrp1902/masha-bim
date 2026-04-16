@@ -202,10 +202,6 @@ function getMaterialsForWall(wallNode: WallNode): WallMaterials {
   return result
 }
 
-function getVisibleWallMaterial(wallNode: WallNode): Material {
-  return createBaseVisibleWallMaterial(wallNode)
-}
-
 function getWallHideState(
   wallNode: WallNode,
   wallMesh: Mesh,
@@ -301,7 +297,7 @@ export const WallCutout = () => {
             ? materials.deleteVisible
             : isSelectionHighlighted
               ? materials.highlightedVisible
-              : getVisibleWallMaterial(wallNode)
+              : materials.visible
         }
       })
       lastWallMode.current = wallMode
@@ -323,7 +319,7 @@ export const WallCutout = () => {
         const current = wallMesh.material as Material
         snapshot.set(wallMesh, current)
         if (current === mats.highlightedVisible || current === mats.deleteVisible) {
-          wallMesh.material = getVisibleWallMaterial(wallNode)
+          wallMesh.material = mats.visible
         } else if (current === mats.highlightedInvisible || current === mats.deleteInvisible) {
           wallMesh.material = mats.invisible
         }

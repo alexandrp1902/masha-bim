@@ -93,12 +93,16 @@ interface ViewerProps {
   children?: React.ReactNode
   selectionManager?: 'default' | 'custom'
   perf?: boolean
+  postProcessing?: boolean
+  shadowsEnabled?: boolean
 }
 
 const Viewer: React.FC<ViewerProps> = ({
   children,
   selectionManager = 'default',
   perf = false,
+  postProcessing = true,
+  shadowsEnabled = true,
 }) => {
   const theme = useViewer((state) => state.theme)
   return (
@@ -122,17 +126,21 @@ const Viewer: React.FC<ViewerProps> = ({
       resize={{
         debounce: 100,
       }}
-      shadows={{
-        type: THREE.PCFShadowMap,
-        enabled: true,
-      }}
+      shadows={
+        shadowsEnabled
+          ? {
+              type: THREE.PCFShadowMap,
+              enabled: true,
+            }
+          : false
+      }
     >
       {/* <AnimatedBackground isDark={theme === 'dark'} /> */}
       <ViewerCamera />
 
       {/* <directionalLight position={[10, 10, 5]} intensity={0.5} castShadow
         /> */}
-      <Lights />
+      <Lights shadowsEnabled={shadowsEnabled} />
       <Bvh>
         <SceneRenderer />
       </Bvh>
@@ -153,7 +161,7 @@ const Viewer: React.FC<ViewerProps> = ({
       <WallSystem />
       <WindowSystem />
       <ZoneSystem />
-      <PostProcessing />
+      <PostProcessing enabled={postProcessing} />
       {/* <DebugRenderer /> */}
       <GPUDeviceWatcher />
 

@@ -130,7 +130,7 @@ const useViewer = create<ViewerState>()(
           return { showGuides: show, projectPreferences }
         }),
 
-      showGrid: true,
+      showGrid: false,
       setShowGrid: (show) =>
         set((state) => {
           const projectPreferences = { ...(state.projectPreferences || {}) }
@@ -152,7 +152,7 @@ const useViewer = create<ViewerState>()(
             projectId: id,
             showScans: prefs.showScans ?? true,
             showGuides: prefs.showGuides ?? true,
-            showGrid: prefs.showGrid ?? true,
+            showGrid: prefs.showGrid ?? false,
           }
         }),
       projectPreferences: {},

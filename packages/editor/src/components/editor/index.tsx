@@ -52,6 +52,7 @@ import { FloatingActionMenu } from './floating-action-menu'
 import { FloatingBuildingActionMenu } from './floating-building-action-menu'
 import { FloorplanPanel } from './floorplan-panel'
 import { Grid } from './grid'
+import { OriginHelper } from './origin-helper'
 import { PresetThumbnailGenerator } from './preset-thumbnail-generator'
 import { SelectionManager } from './selection-manager'
 import { SiteEdgeLabels } from './site-edge-labels'
@@ -62,6 +63,37 @@ const CAMERA_CONTROLS_HINT_DISMISSED_STORAGE_KEY = 'editor-camera-controls-hint-
 const DELETE_CURSOR_BADGE_COLOR = '#ef4444'
 const DELETE_CURSOR_BADGE_OFFSET_X = 14
 const DELETE_CURSOR_BADGE_OFFSET_Y = 14
+
+type ViewerDebugSettings = {
+  perf: boolean
+  postProcessing: boolean
+  shadowsEnabled: boolean
+}
+
+function parseViewerDebugSettings(search: string): ViewerDebugSettings {
+  const params = new URLSearchParams(search)
+  const quality = params.get('quality')
+
+  const readFlag = (key: string, defaultValue: boolean) => {
+    const value = params.get(key)
+    if (value == null) return defaultValue
+    return value !== '0' && value !== 'false'
+  }
+
+  if (quality === 'low') {
+    return {
+      perf: false,
+      postProcessing: false,
+      shadowsEnabled: false,
+    }
+  }
+
+  return {
+    perf: readFlag('perf', false),
+    postProcessing: readFlag('postfx', false),
+    shadowsEnabled: readFlag('shadows', false),
+  }
+}
 
 /**
  * Wire up module-level singletons (spatial grid, space detection, SFX) for
@@ -525,9 +557,8 @@ const ViewerSceneContent = memo(function ViewerSceneContent({
       <CeilingSystem />
       <RoofEditSystem />
       <StairEditSystem />
-      {!isLoading && !isFirstPersonMode && (
-        <Grid cellColor="#aaa" fadeDistance={500} sectionColor="#ccc" />
-      )}
+      <Grid cellColor="#aaa" fadeDistance={500} sectionColor="#ccc" />
+      <OriginHelper />
       {!(isLoading || isVersionPreviewMode) && !isFirstPersonMode && <ToolManager />}
       {isFirstPersonMode && <FirstPersonControls />}
       <CustomCameraControls />
@@ -603,6 +634,11 @@ const ViewerCanvas = memo(function ViewerCanvas({
   const [isCameraControlsHintVisible, setIsCameraControlsHintVisible] = useState<boolean | null>(
     null,
   )
+  const [viewerDebugSettings, setViewerDebugSettings] = useState<ViewerDebugSettings>({
+    perf: false,
+    postProcessing: false,
+    shadowsEnabled: false,
+  })
 
   const viewerAreaRef = useRef<HTMLDivElement>(null)
   const viewer3dRef = useRef<HTMLDivElement>(null)
@@ -638,6 +674,10 @@ const ViewerCanvas = memo(function ViewerCanvas({
 
   useEffect(() => {
     setIsCameraControlsHintVisible(!readCameraControlsHintDismissed())
+  }, [])
+
+  useEffect(() => {
+    setViewerDebugSettings(parseViewerDebugSettings(window.location.search))
   }, [])
 
   const dismissCameraControlsHint = useCallback(() => {
@@ -689,7 +729,12 @@ const ViewerCanvas = memo(function ViewerCanvas({
             />
           ) : null}
           <SelectionPersistenceManager enabled={hasLoadedInitialScene && !showLoader} />
-          <Viewer selectionManager={isFirstPersonMode ? 'default' : 'custom'}>
+          <Viewer
+            perf={viewerDebugSettings.perf}
+            postProcessing={viewerDebugSettings.postProcessing}
+            selectionManager={isFirstPersonMode ? 'default' : 'custom'}
+            shadowsEnabled={viewerDebugSettings.shadowsEnabled}
+          >
             <ViewerSceneContent
               isFirstPersonMode={isFirstPersonMode}
               isLoading={isLoading}

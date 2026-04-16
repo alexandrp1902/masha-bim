@@ -24,13 +24,7 @@ export const SiteNode = BaseNode.extend({
   // Specific props
   polygon: PropertyLineData.optional().default({
     type: 'polygon',
-    // Default 30x30 square centered at origin
-    points: [
-      [-15, -15],
-      [15, -15],
-      [15, 15],
-      [-15, 15],
-    ],
+    points: [],
   }),
   // terrain: TerrainData,
   children: z

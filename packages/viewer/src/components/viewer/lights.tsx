@@ -4,7 +4,7 @@ import type { AmbientLight, DirectionalLight, OrthographicCamera } from 'three/w
 import * as THREE from 'three/webgpu'
 import useViewer from '../../store/use-viewer'
 
-export function Lights() {
+export function Lights({ shadowsEnabled = true }: { shadowsEnabled?: boolean }) {
   const theme = useViewer((state) => state.theme)
   const isDark = theme === 'dark'
 
@@ -109,7 +109,7 @@ export function Lights() {
   return (
     <>
       <directionalLight
-        castShadow
+        castShadow={shadowsEnabled}
         position={[10, 10, 10]}
         ref={light1Ref}
         shadow-bias={-0.002}
