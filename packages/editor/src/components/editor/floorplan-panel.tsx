@@ -4659,6 +4659,14 @@ export function FloorplanPanel() {
   const viewportHostRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
   const panStateRef = useRef<PanState | null>(null)
+  const bgMarqueeRef = useRef<{ pointerId: number; startClientX: number; startClientY: number; startPlanPoint: WallPlanPoint } | null>(null)
+  const bgDragFinishedRef = useRef(false)
+  const groupMoveRef = useRef<{
+    sourcePoint: WallPlanPoint
+    currentDelta: [number, number]
+    originals: Map<string, { start: WallPlanPoint; end: WallPlanPoint } | { polygon: [number, number][] }>
+  } | null>(null)
+  const [groupMoveDelta, setGroupMoveDelta] = useState<[number, number] | null>(null)
   const guideInteractionRef = useRef<GuideInteractionState | null>(null)
   const guideTransformDraftRef = useRef<GuideTransformDraft | null>(null)
   const wallEndpointDragRef = useRef<WallEndpointDragState | null>(null)
@@ -5118,35 +5126,38 @@ export function FloorplanPanel() {
     [floorplanWallById, wallMiterData, walls],
   )
   const displayWallPolygons = useMemo(() => {
-    if (!wallEndpointDraft && !wallCurveDraft) {
-      return wallPolygons
+    let base = wallPolygons
+
+    if (wallEndpointDraft || wallCurveDraft) {
+      const previewWallId = wallEndpointDraft?.wallId ?? wallCurveDraft?.wallId
+      const previewWall = previewWallId ? displayWallById.get(previewWallId) : null
+      if (previewWall) {
+        const previewPolygon = getWallPlanFootprint(
+          getFloorplanWall(previewWall),
+          EMPTY_WALL_MITER_DATA,
+        )
+        base = wallPolygons.map((entry) =>
+          entry.wall.id === previewWall.id
+            ? { wall: previewWall, polygon: previewPolygon, points: formatPolygonPoints(previewPolygon) }
+            : entry,
+        )
+      }
     }
 
-    const previewWallId = wallEndpointDraft?.wallId ?? wallCurveDraft?.wallId
-    if (!previewWallId) {
-      return wallPolygons
+    if (groupMoveDelta) {
+      const [dx, dz] = groupMoveDelta
+      const selectedSet = new Set(selectedIds)
+      return base.map((entry) => {
+        if (!selectedSet.has(entry.wall.id)) return entry
+        const w = entry.wall
+        const previewWall = { ...w, start: [w.start[0] + dx, w.start[1] + dz] as [number, number], end: [w.end[0] + dx, w.end[1] + dz] as [number, number] }
+        const polygon = getWallPlanFootprint(getFloorplanWall(previewWall), EMPTY_WALL_MITER_DATA)
+        return { wall: previewWall, polygon, points: formatPolygonPoints(polygon) }
+      })
     }
 
-    const previewWall = displayWallById.get(previewWallId)
-    if (!previewWall) {
-      return wallPolygons
-    }
-
-    const previewPolygon = getWallPlanFootprint(
-      getFloorplanWall(previewWall),
-      EMPTY_WALL_MITER_DATA,
-    )
-
-    return wallPolygons.map((entry) =>
-      entry.wall.id === previewWall.id
-        ? {
-            wall: previewWall,
-            polygon: previewPolygon,
-            points: formatPolygonPoints(previewPolygon),
-          }
-        : entry,
-    )
-  }, [displayWallById, wallCurveDraft, wallEndpointDraft, wallPolygons])
+    return base
+  }, [displayWallById, wallCurveDraft, wallEndpointDraft, wallPolygons, groupMoveDelta, selectedIds])
 
   const openingsPolygons = useMemo(
     () =>
@@ -6131,28 +6142,28 @@ export function FloorplanPanel() {
             slabFill: '#5f6483',
             slabStroke: '#71717a',
             selectedSlabFill: '#b7b5f7',
-            wallFill: '#fafafa',
-            wallStroke: '#38bdf8',
-            wallHoverStroke: '#a1a1aa',
+            wallFill: '#9ca3af',
+            wallStroke: '#6b7280',
+            wallHoverStroke: '#d1d5db',
             deleteFill: '#f87171',
             deleteStroke: '#ef4444',
             deleteWallFill: '#ef4444',
             deleteWallHoverStroke: '#fca5a5',
-            selectedFill: '#8381ed',
-            selectedStroke: '#8381ed',
+            selectedFill: '#3b82f6',
+            selectedStroke: '#3b82f6',
             draftFill: '#818cf8',
             draftStroke: '#c7d2fe',
             measurementStroke: '#cbd5e1',
             cursor: '#818cf8',
-            editCursor: '#8381ed',
+            editCursor: '#3b82f6',
             anchor: '#818cf8',
             openingFill: '#0a0e1b',
             openingStroke: '#fafafa',
             endpointHandleFill: '#09090b',
             endpointHandleStroke: '#a1a1aa',
             endpointHandleHoverStroke: '#d4d4d8',
-            endpointHandleActiveFill: '#8381ed',
-            endpointHandleActiveStroke: '#8381ed',
+            endpointHandleActiveFill: '#3b82f6',
+            endpointHandleActiveStroke: '#3b82f6',
           }
         : {
             surface: '#ffffff',
@@ -6163,28 +6174,28 @@ export function FloorplanPanel() {
             slabFill: '#c4c4cc',
             slabStroke: '#52525b',
             selectedSlabFill: '#b7b5f7',
-            wallFill: '#171717',
-            wallStroke: '#0284c7',
-            wallHoverStroke: '#71717a',
+            wallFill: '#6b7280',
+            wallStroke: '#4b5563',
+            wallHoverStroke: '#9ca3af',
             deleteFill: '#fca5a5',
             deleteStroke: '#dc2626',
             deleteWallFill: '#ef4444',
             deleteWallHoverStroke: '#f87171',
-            selectedFill: '#8381ed',
-            selectedStroke: '#8381ed',
+            selectedFill: '#3b82f6',
+            selectedStroke: '#3b82f6',
             draftFill: '#6366f1',
             draftStroke: '#4338ca',
             measurementStroke: '#334155',
             cursor: '#6366f1',
-            editCursor: '#8381ed',
+            editCursor: '#3b82f6',
             anchor: '#4338ca',
             openingFill: '#ffffff',
             openingStroke: '#171717',
             endpointHandleFill: '#ffffff',
             endpointHandleStroke: '#71717a',
             endpointHandleHoverStroke: '#52525b',
-            endpointHandleActiveFill: '#8381ed',
-            endpointHandleActiveStroke: '#8381ed',
+            endpointHandleActiveFill: '#3b82f6',
+            endpointHandleActiveStroke: '#3b82f6',
           },
     [theme],
   )
@@ -7280,7 +7291,7 @@ export function FloorplanPanel() {
   }, [setFloorplanHovered])
 
   const handlePointerDown = useCallback((event: ReactPointerEvent<SVGSVGElement>) => {
-    if (event.button !== 2) {
+    if (event.button !== 2 && event.button !== 1) {
       return
     }
 
@@ -7459,6 +7470,18 @@ export function FloorplanPanel() {
             ? previousPoint
             : snappedPoint
         })
+        return
+      }
+
+      if (groupMoveRef.current) {
+        const snapped = getSnappedFloorplanPoint(planPoint)
+        const newDelta: [number, number] = [
+          snapped[0] - groupMoveRef.current.sourcePoint[0],
+          snapped[1] - groupMoveRef.current.sourcePoint[1],
+        ]
+        groupMoveRef.current.currentDelta = newDelta
+        setGroupMoveDelta(newDelta)
+        setCursorPoint(snapped)
         return
       }
 
@@ -8066,6 +8089,34 @@ export function FloorplanPanel() {
     ],
   )
 
+  const commitGroupMove = useCallback(
+    (dx: number, dz: number) => {
+      const ref = groupMoveRef.current
+      if (!ref) return
+      const { updateNode } = useScene.getState()
+      for (const [id, original] of ref.originals) {
+        if ('start' in original) {
+          updateNode(id as AnyNodeId, {
+            start: [original.start[0] + dx, original.start[1] + dz],
+            end: [original.end[0] + dx, original.end[1] + dz],
+          })
+        } else if ('polygon' in original) {
+          updateNode(id as AnyNodeId, {
+            polygon: original.polygon.map((p) => [p[0] + dx, p[1] + dz]),
+          })
+        }
+      }
+      groupMoveRef.current = null
+      setGroupMoveDelta(null)
+    },
+    [],
+  )
+
+  const cancelGroupMove = useCallback(() => {
+    groupMoveRef.current = null
+    setGroupMoveDelta(null)
+  }, [])
+
   const handleWallSelect = useCallback(
     (wall: WallNode) => {
       commitFloorplanSelection([wall.id])
@@ -8075,6 +8126,41 @@ export function FloorplanPanel() {
 
   const handleWallClick = useCallback(
     (wall: WallNode, event: ReactMouseEvent<SVGElement>) => {
+      // In select mode: handle selection and group move, not placement
+      if (!isOpeningPlacementActive && mode === 'select') {
+        setSelectedReferenceId(null)
+
+        // If group move is active → commit at current delta
+        if (groupMoveRef.current) {
+          const delta = groupMoveRef.current.currentDelta
+          commitGroupMove(delta[0], delta[1])
+          return
+        }
+
+        // Second click on already-selected wall → start group move
+        if (selectedIdSet.has(wall.id) && selectedIds.length > 0) {
+          const planPoint = getPlanPointFromClientPoint(event.clientX, event.clientY)
+          if (planPoint) {
+            const snappedPoint = getSnappedFloorplanPoint(planPoint)
+            const originals = new Map<string, { start: WallPlanPoint; end: WallPlanPoint } | { polygon: [number, number][] }>()
+            const nodes = useScene.getState().nodes
+            for (const id of selectedIds) {
+              const n = nodes[id as AnyNodeId]
+              if (n?.type === 'wall') originals.set(id, { start: [...n.start] as WallPlanPoint, end: [...n.end] as WallPlanPoint })
+              else if (n?.type === 'slab' && 'polygon' in n) originals.set(id, { polygon: (n.polygon as [number, number][]).map((p) => [...p] as [number, number]) })
+            }
+            groupMoveRef.current = { sourcePoint: snappedPoint, currentDelta: [0, 0], originals }
+            setGroupMoveDelta([0, 0])
+          }
+          return
+        }
+
+        // First click on unselected wall → select it
+        toggleFloorplanSelection(wall.id, getSelectionModifierKeys(event))
+        return
+      }
+
+      // Placement mode (door/window/item): emit for placement tools
       const centerX = (wall.start[0] + wall.end[0]) / 2
       const centerZ = (wall.start[1] + wall.end[1]) / 2
       const halfLength = Math.hypot(wall.end[0] - wall.start[0], wall.end[1] - wall.start[1]) / 2
@@ -8089,7 +8175,17 @@ export function FloorplanPanel() {
         nativeEvent: event.nativeEvent as any,
       } as any)
     },
-    [floorplanOpeningLocalY, isOpeningPlacementActive, setSelectedReferenceId],
+    [
+      commitGroupMove,
+      floorplanOpeningLocalY,
+      getPlanPointFromClientPoint,
+      isOpeningPlacementActive,
+      mode,
+      selectedIdSet,
+      selectedIds,
+      setSelectedReferenceId,
+      toggleFloorplanSelection,
+    ],
   )
 
   const handleWallDoubleClick = useCallback(
@@ -8310,9 +8406,39 @@ export function FloorplanPanel() {
   )
   const handleSlabSelect = useCallback(
     (slabId: SlabNode['id'], event: ReactMouseEvent<SVGElement>) => {
+      if (mode === 'select') {
+        setSelectedReferenceId(null)
+
+        if (groupMoveRef.current) {
+          const delta = groupMoveRef.current.currentDelta
+          commitGroupMove(delta[0], delta[1])
+          return
+        }
+
+        if (selectedIdSet.has(slabId) && selectedIds.length > 0) {
+          const planPoint = getPlanPointFromClientPoint(event.clientX, event.clientY)
+          if (planPoint) {
+            const snappedPoint = getSnappedFloorplanPoint(planPoint)
+            const originals = new Map<string, { start: WallPlanPoint; end: WallPlanPoint } | { polygon: [number, number][] }>()
+            const nodes = useScene.getState().nodes
+            for (const id of selectedIds) {
+              const n = nodes[id as AnyNodeId]
+              if (n?.type === 'wall') originals.set(id, { start: [...n.start] as WallPlanPoint, end: [...n.end] as WallPlanPoint })
+              else if (n?.type === 'slab' && 'polygon' in n) originals.set(id, { polygon: (n.polygon as [number, number][]).map((p) => [...p] as [number, number]) })
+            }
+            groupMoveRef.current = { sourcePoint: snappedPoint, currentDelta: [0, 0], originals }
+            setGroupMoveDelta([0, 0])
+          }
+          return
+        }
+
+        toggleFloorplanSelection(slabId, getSelectionModifierKeys(event))
+        return
+      }
+
       emitFloorplanNodeClick(slabId, 'click', event)
     },
-    [emitFloorplanNodeClick],
+    [commitGroupMove, emitFloorplanNodeClick, getPlanPointFromClientPoint, mode, selectedIdSet, selectedIds, setSelectedReferenceId, toggleFloorplanSelection],
   )
   const handleZoneSelect = useCallback(
     (zoneId: ZoneNodeType['id'], event: ReactMouseEvent<SVGElement>) => {
@@ -8736,6 +8862,33 @@ export function FloorplanPanel() {
       }
 
       clearWallPlacementDraft()
+
+      // If this wall is already selected → start group move instead of endpoint drag
+      if (selectedIdSet.has(wall.id) && selectedIds.length > 0) {
+        if (groupMoveRef.current) {
+          // Second click on endpoint → commit move to that point
+          const dx = movingPoint[0] - groupMoveRef.current.sourcePoint[0]
+          const dz = movingPoint[1] - groupMoveRef.current.sourcePoint[1]
+          commitGroupMove(dx, dz)
+        } else {
+          // Start group move: save original positions
+          const originals = new Map<string, { start: WallPlanPoint; end: WallPlanPoint } | { polygon: [number, number][] }>()
+          const nodes = useScene.getState().nodes
+          for (const id of selectedIds) {
+            const n = nodes[id as AnyNodeId]
+            if (!n) continue
+            if (n.type === 'wall') {
+              originals.set(id, { start: [...n.start] as WallPlanPoint, end: [...n.end] as WallPlanPoint })
+            } else if (n.type === 'slab' && 'polygon' in n) {
+              originals.set(id, { polygon: (n as any).polygon.map((p: [number, number]) => [p[0], p[1]] as [number, number]) })
+            }
+          }
+          groupMoveRef.current = { sourcePoint: movingPoint, currentDelta: [0, 0], originals }
+          setGroupMoveDelta([0, 0])
+        }
+        return
+      }
+
       handleWallSelect(wall)
 
       const fixedPoint = endpoint === 'start' ? wall.end : wall.start
@@ -8751,7 +8904,7 @@ export function FloorplanPanel() {
       setWallEndpointDraft(buildWallEndpointDraft(wall.id, endpoint, fixedPoint, movingPoint))
       setCursorPoint(movingPoint)
     },
-    [clearWallPlacementDraft, handleWallPlacementPoint, handleWallSelect, isWallBuildActive, mode],
+    [clearWallPlacementDraft, commitGroupMove, handleWallPlacementPoint, handleWallSelect, isWallBuildActive, mode, selectedIdSet, selectedIds],
   )
   const handleWallCurvePointerDown = useCallback(
     (wall: WallNode, event: ReactPointerEvent<SVGCircleElement>) => {
@@ -9403,11 +9556,120 @@ export function FloorplanPanel() {
     syncPreviewSelectedIds,
   ])
 
+  const handleBgMarqueePointerDown = useCallback(
+    (event: ReactPointerEvent<SVGRectElement>) => {
+      if (event.button !== 0 || !canSelectElementFloorplanGeometry) return
+      const planPoint = getPlanPointFromClientPoint(event.clientX, event.clientY)
+      if (!planPoint) return
+      const snappedPoint = getSnappedFloorplanPoint(planPoint)
+      bgMarqueeRef.current = {
+        pointerId: event.pointerId,
+        startClientX: event.clientX,
+        startClientY: event.clientY,
+        startPlanPoint: snappedPoint,
+      }
+      event.currentTarget.setPointerCapture(event.pointerId)
+    },
+    [canSelectElementFloorplanGeometry, getPlanPointFromClientPoint],
+  )
+
+  const handleBgMarqueePointerMove = useCallback(
+    (event: ReactPointerEvent<SVGRectElement>) => {
+      if (bgMarqueeRef.current?.pointerId !== event.pointerId) return
+      const dragDistance = Math.hypot(
+        event.clientX - bgMarqueeRef.current.startClientX,
+        event.clientY - bgMarqueeRef.current.startClientY,
+      )
+      if (dragDistance < FLOORPLAN_MARQUEE_DRAG_THRESHOLD_PX) return
+      const planPoint = getPlanPointFromClientPoint(event.clientX, event.clientY)
+      if (!planPoint) return
+      const snappedPoint = getSnappedFloorplanPoint(planPoint)
+      setFloorplanMarqueeState((current) => {
+        if (current?.pointerId === event.pointerId) {
+          return { ...current, currentPlanPoint: snappedPoint }
+        }
+        return {
+          pointerId: bgMarqueeRef.current!.pointerId,
+          startClientX: bgMarqueeRef.current!.startClientX,
+          startClientY: bgMarqueeRef.current!.startClientY,
+          startPlanPoint: bgMarqueeRef.current!.startPlanPoint,
+          currentPlanPoint: snappedPoint,
+        }
+      })
+      const bounds = getFloorplanSelectionBounds(bgMarqueeRef.current.startPlanPoint, snappedPoint)
+      syncPreviewSelectedIds(getFloorplanSelectionIdsInBounds(bounds))
+    },
+    [getPlanPointFromClientPoint, getFloorplanSelectionIdsInBounds, syncPreviewSelectedIds],
+  )
+
+  const handleBgMarqueePointerUp = useCallback(
+    (event: ReactPointerEvent<SVGRectElement>) => {
+      if (bgMarqueeRef.current?.pointerId !== event.pointerId) return
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId)
+      }
+      const dragDistance = Math.hypot(
+        event.clientX - bgMarqueeRef.current.startClientX,
+        event.clientY - bgMarqueeRef.current.startClientY,
+      )
+      if (dragDistance >= FLOORPLAN_MARQUEE_DRAG_THRESHOLD_PX && floorplanMarqueeState) {
+        const rawEndPlanPoint =
+          getPlanPointFromClientPoint(event.clientX, event.clientY) ??
+          floorplanMarqueeState.currentPlanPoint
+        const endPlanPoint = getSnappedFloorplanPoint(rawEndPlanPoint)
+        const bounds = getFloorplanSelectionBounds(
+          floorplanMarqueeState.startPlanPoint,
+          endPlanPoint,
+        )
+        addFloorplanSelection(getFloorplanSelectionIdsInBounds(bounds), getSelectionModifierKeys(event))
+        bgDragFinishedRef.current = true
+      } else if (groupMoveRef.current) {
+        // Short click on background → commit group move to current cursor position
+        const delta = groupMoveRef.current.currentDelta
+        commitGroupMove(delta[0], delta[1])
+      }
+      setFloorplanMarqueeState(null)
+      syncPreviewSelectedIds([])
+      bgMarqueeRef.current = null
+    },
+    [
+      addFloorplanSelection,
+      commitGroupMove,
+      floorplanMarqueeState,
+      getFloorplanSelectionIdsInBounds,
+      getPlanPointFromClientPoint,
+      syncPreviewSelectedIds,
+    ],
+  )
+
+  const handleBgMarqueePointerCancel = useCallback(
+    (event: ReactPointerEvent<SVGRectElement>) => {
+      if (bgMarqueeRef.current?.pointerId !== event.pointerId) return
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId)
+      }
+      setFloorplanMarqueeState(null)
+      syncPreviewSelectedIds([])
+      bgMarqueeRef.current = null
+    },
+    [syncPreviewSelectedIds],
+  )
+
   useEffect(() => {
     if (mode !== 'delete') {
       useViewer.getState().setHoveredId(null)
     }
   }, [mode])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && groupMoveRef.current) {
+        cancelGroupMove()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [cancelGroupMove])
 
   useEffect(() => {
     const svg = svgRef.current
@@ -9855,6 +10117,16 @@ export function FloorplanPanel() {
             <rect
               fill={palette.surface}
               height={viewBox.height}
+              onClick={(e) => {
+                if (bgDragFinishedRef.current) {
+                  e.stopPropagation()
+                  bgDragFinishedRef.current = false
+                }
+              }}
+              onPointerCancel={handleBgMarqueePointerCancel}
+              onPointerDown={handleBgMarqueePointerDown}
+              onPointerMove={handleBgMarqueePointerMove}
+              onPointerUp={handleBgMarqueePointerUp}
               width={viewBox.width}
               x={viewBox.minX}
               y={viewBox.minY}

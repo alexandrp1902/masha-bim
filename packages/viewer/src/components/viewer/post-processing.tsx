@@ -299,6 +299,7 @@ const PostProcessingPasses = ({ enabled = true }: { enabled?: boolean }) => {
     bgUniform.current.value.copy(bgCurrent.current)
 
     if (hasPipelineErrorRef.current || !renderPipelineRef.current) {
+      scene.background = bgCurrent.current
       try {
         if ((renderer as any).setClearAlpha) {
           ;(renderer as any).setClearAlpha(1)
